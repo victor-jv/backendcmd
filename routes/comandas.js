@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../utils/firebaseAdmin'); // Já puxando db corretamente
+const { db } = require('../utils/firebaseAdmin');
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
 // POST /comandas - Criar nova comanda com número sequencial
 router.post('/', async (req, res) => {
   try {
-    const { nome, status, createdAt } = req.body; // Remove 'numero' do req.body
+    const { nome, status, createdAt } = req.body; // 'numero' é removido do req.body original
     
     // Obter e incrementar o contador sequencial
     const counterRef = db.collection('counters').doc('comandas');
