@@ -7,46 +7,28 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const snapshot = await db.collection('comandas').get();
+    // ✅ Retorna o ID do documento do Firebase como 'id'
     const comandas = snapshot.docs.map(doc => ({ 
-      id: doc.id, // ✅ Renomeia 'numero' para 'id' para consistência
+      id: doc.id, 
       ...doc.data() 
     }));
     res.json(comandas);
   } catch (err) {
-    console.error('Erro ao buscar comandas:', err); // Adiciona log de erro no backend
+    console.error('Erro ao buscar comandas:', err); 
     res.status(500).json({ error: 'Erro ao buscar comandas' });
   }
 });
 
-// POST /comandas - Criar nova comanda com número sequencial
+// POST /comandas - Criar nova comanda
 router.post('/', async (req, res) => {
   try {
-    const { nome, status, createdAt } = req.body;
+    const { numero, nome, status, createdAt } = req.body; // 'numero' é o ID gerado no frontend
     
-    const counterRef = db.collection('counters').doc('comandas');
-    let nextSequentialNumber;
-
-    await db.runTransaction(async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      if (!counterDoc.exists) {
-        nextSequentialNumber = 1;
-        transaction.set(counterRef, { lastNumber: nextSequentialNumber });
-      } else {
-        nextSequentialNumber = counterDoc.data().lastNumber + 1;
-        transaction.update(counterRef, { lastNumber: nextSequentialNumber });
-      }
-    });
-
-    const docRef = await db.collection('comandas').add({ 
-        nome, 
-        status, 
-        createdAt,
-        numero_sequencial: nextSequentialNumber 
-    });
+    // Salva a comanda usando o 'numero' do frontend como ID do documento
+    await db.collection('comandas').doc(numero).set({ nome, status, createdAt });
 
     res.status(201).json({ 
-        id: docRef.id, 
-        numero_sequencial: nextSequentialNumber, 
+        id: numero, // Retorna o ID que foi usado (do frontend) como 'id'
         nome, status, createdAt 
     });
   } catch (err) {
