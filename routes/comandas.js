@@ -3,74 +3,32 @@ const { db } = require('../utils/firebaseAdmin');
 
 const router = express.Router();
 
-// GET /comandas - Buscar comandas com filtro de status (ou todas)
+// GET /comandas
 router.get('/', async (req, res) => {
   try {
-    const { status } = req.query; // ✅ Aceita parâmetro de query 'status'
-    let queryRef = db.collection('comandas');
-
-    if (status) {
-      queryRef = queryRef.where('status', '==', status); // ✅ Filtra por status no Firestore
-    }
-
-    const snapshot = await queryRef.get(); // Executa a query
-    const comandas = snapshot.docs.map(doc => ({ 
-      id: doc.id, // Retorna o ID real do documento do Firebase como 'id'
-      ...doc.data() 
-    }));
+    const snapshot = await db.collection('comandas').get();
+    const comandas = snapshot.docs.map(doc => ({ ...doc.data(), numero: doc.id }));
     res.json(comandas);
   } catch (err) {
-    console.error('Erro ao buscar comandas:', err); 
     res.status(500).json({ error: 'Erro ao buscar comandas' });
   }
 });
 
-// POST /comandas - Criar nova comanda com número sequencial
+// POST /comandas
 router.post('/', async (req, res) => {
   try {
-    const { nome, status, createdAt } = req.body; // 'numero' é removido do req.body original
-    
-    // Obter e incrementar o contador sequencial
-    const counterRef = db.collection('counters').doc('comandas');
-    let nextSequentialNumber;
-
-    // Usar uma transação para garantir que o contador é atomicamente incrementado
-    await db.runTransaction(async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      if (!counterDoc.exists) {
-        // Se o contador não existe, inicialize-o
-        nextSequentialNumber = 1;
-        transaction.set(counterRef, { lastNumber: nextSequentialNumber });
-      } else {
-        nextSequentialNumber = counterDoc.data().lastNumber + 1;
-        transaction.update(counterRef, { lastNumber: nextSequentialNumber });
-      }
-    });
-
-    // Adicionar a comanda com o número sequencial gerado
-    // O doc.id do Firebase continua sendo gerado automaticamente
-    const docRef = await db.collection('comandas').add({ 
-        nome, 
-        status, 
-        createdAt,
-        numero_sequencial: nextSequentialNumber // ✅ Novo campo para o número sequencial
-    });
-
-    res.status(201).json({ 
-        id: docRef.id, // Retorna o ID real do Firebase
-        numero_sequencial: nextSequentialNumber, // ✅ Retorna o número sequencial
-        nome, status, createdAt 
-    });
+    const { numero, nome, status, createdAt } = req.body;
+    await db.collection('comandas').doc(numero).set({ nome, status, createdAt });
+    res.status(201).json({ message: 'Comanda salva com sucesso' });
   } catch (err) {
-    console.error('Erro ao salvar comanda:', err);
     res.status(500).json({ error: 'Erro ao salvar comanda' });
   }
 });
 
-// PUT /comandas/:numero (Firebase Doc ID) - Usado para atualizar status/total
+// PUT /comandas/:numero ✅ NOVA ROTA
 router.put('/:numero', async (req, res) => {
   try {
-    const { numero } = req.params; 
+    const { numero } = req.params;
     const data = req.body;
 
     await db.collection('comandas').doc(numero).update(data);
@@ -95,14 +53,15 @@ router.put('/:numero/itens', async (req, res) => {
   }
 });
 
-// DELETE /comandas/:numero (Firebase Doc ID)
+// DELETE /comandas/:numero
 router.delete('/:numero', async (req, res) => {
   try {
     await db.collection('comandas').doc(req.params.numero).delete();
     res.status(200).json({ message: 'Comanda excluída' });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao excluir comanda:' , err});
+    res.status(500).json({ error: 'Erro ao excluir comanda' });
   }
 });
 
 module.exports = router;
+
