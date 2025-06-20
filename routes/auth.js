@@ -5,7 +5,7 @@ const { db } = require('../utils/firebaseAdmin');
 
 const router = express.Router();
 
-// Pegando a API Key do arquivo .env
+// Pega a API Key do Firebase do arquivo .env
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
 
 router.post('/login', async (req, res) => {
@@ -18,7 +18,7 @@ router.post('/login', async (req, res) => {
   const authUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
 
   try {
-    // 1. Autentica no Firebase Auth com email/senha
+    // 1. Autenticação via Firebase Auth
     const firebaseResponse = await axios.post(authUrl, {
       email,
       password: senha,
@@ -27,7 +27,7 @@ router.post('/login', async (req, res) => {
 
     const { idToken, localId } = firebaseResponse.data;
 
-    // 2. Busca dados adicionais do usuário no Firestore
+    // 2. Busca o usuário no Firestore
     const userDoc = await db.collection('users').doc(localId).get();
 
     if (!userDoc.exists) {
@@ -40,7 +40,7 @@ router.post('/login', async (req, res) => {
       role: userDoc.data().role,
     };
 
-    // 3. Retorna sucesso
+    // 3. Retorna sucesso com token + dados
     res.status(200).json({
       message: 'Login bem-sucedido!',
       token: idToken,
@@ -59,3 +59,4 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
+
