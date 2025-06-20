@@ -2,8 +2,8 @@ const admin = require('firebase-admin');
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Carrega as credenciais do Firebase a partir de uma variável de ambiente JSON stringificada
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+// ✅ O código foi alterado para ler o "Secret File" do Render.
+const serviceAccount = require('/etc/secrets/firebase-credentials.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
