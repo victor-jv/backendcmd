@@ -41,3 +41,7 @@ app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT} 🔥`);
 });
 
+cont vr {
+  if {
+    console.log("hello world")
+}
