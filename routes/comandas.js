@@ -1,67 +1,151 @@
-const express = require('express');
-const { db } = require('../utils/firebaseAdmin');
+import { Router } from 'express';
+import { supabase } from '../utils/supabaseClient.js';
 
-const router = express.Router();
+const router = Router();
 
-// GET /comandas
+// ROTA GET: Buscar todas as comandas
 router.get('/', async (req, res) => {
   try {
-    const snapshot = await db.collection('comandas').get();
-    const comandas = snapshot.docs.map(doc => ({ ...doc.data(), numero: doc.id }));
-    res.json(comandas);
+    const { data, error } = await supabase
+      .from('comandas')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
   } catch (err) {
+    console.error('Erro ao buscar comandas:', err.message);
     res.status(500).json({ error: 'Erro ao buscar comandas' });
   }
 });
 
-// POST /comandas
+// ✅ NOVA ROTA GET: Buscar uma comanda específica por ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('comandas')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar comanda específica:', error.message);
+      return res.status(404).json({ error: 'Comanda não encontrada' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Erro interno ao buscar comanda:', err.message);
+    res.status(500).json({ error: 'Erro interno ao buscar comanda' });
+  }
+});
+
+// ROTA POST: Criar uma nova comanda
 router.post('/', async (req, res) => {
   try {
-    const { numero, nome, status, createdAt } = req.body;
-    await db.collection('comandas').doc(numero).set({ nome, status, createdAt });
-    res.status(201).json({ message: 'Comanda salva com sucesso' });
+    const { nome, status } = req.body;
+
+    if (!nome || !status) {
+      return res.status(400).json({ error: 'Nome e status são obrigatórios.' });
+    }
+
+    const agora = new Date().toISOString();
+
+    const novaComanda = {
+      nome,
+      status,
+      itens: [],
+      total: 0,
+      dataAbertura: agora,
+      created_at: agora,
+    };
+
+    const { data, error } = await supabase
+      .from('comandas')
+      .insert([novaComanda])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json(data);
   } catch (err) {
+    console.error('Erro ao salvar comanda:', err.message);
     res.status(500).json({ error: 'Erro ao salvar comanda' });
   }
 });
 
-// PUT /comandas/:numero ✅ NOVA ROTA
-router.put('/:numero', async (req, res) => {
+// ROTA PUT: Atualizar status ou nome de uma comanda
+router.put('/:id', async (req, res) => {
   try {
-    const { numero } = req.params;
-    const data = req.body;
+    const { id } = req.params;
+    const { nome, status } = req.body;
 
-    await db.collection('comandas').doc(numero).update(data);
-    res.status(200).json({ message: 'Comanda atualizada com sucesso' });
+    const updatedData = { updated_at: new Date().toISOString() };
+    if (nome) updatedData.nome = nome;
+    if (status) updatedData.status = status;
+
+    const { data, error } = await supabase
+      .from('comandas')
+      .update(updatedData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(200).json(data);
   } catch (err) {
-    console.error('Erro ao atualizar comanda:', err);
+    console.error('Erro ao atualizar comanda:', err.message);
     res.status(500).json({ error: 'Erro ao atualizar comanda' });
   }
 });
 
-// PUT /comandas/:numero/itens (para salvar itens de pedidos)
-router.put('/:numero/itens', async (req, res) => {
+// ROTA PUT: Salvar/substituir os itens de uma comanda
+router.put('/:id/itens', async (req, res) => {
   try {
-    const { numero } = req.params;
+    const { id } = req.params;
     const { itens } = req.body;
 
-    await db.collection('comandas').doc(numero).update({ itens });
-    res.status(200).json({ message: 'Itens salvos com sucesso' });
+    if (!Array.isArray(itens)) {
+      return res.status(400).json({ error: 'O campo "itens" deve ser um array.' });
+    }
+
+    const { data, error } = await supabase
+      .from('comandas')
+      .update({ itens, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(200).json(data);
   } catch (err) {
-    console.error('Erro ao salvar itens da comanda:', err);
+    console.error('Erro ao salvar itens da comanda:', err.message);
     res.status(500).json({ error: 'Erro ao salvar itens da comanda' });
   }
 });
 
-// DELETE /comandas/:numero
-router.delete('/:numero', async (req, res) => {
+// ROTA DELETE: Excluir uma comanda
+router.delete('/:id', async (req, res) => {
   try {
-    await db.collection('comandas').doc(req.params.numero).delete();
+    const { id } = req.params;
+    const { error } = await supabase
+      .from('comandas')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
     res.status(200).json({ message: 'Comanda excluída' });
   } catch (err) {
+    console.error('Erro ao excluir comanda:', err.message);
     res.status(500).json({ error: 'Erro ao excluir comanda' });
   }
 });
 
-module.exports = router;
+export default router;
 
