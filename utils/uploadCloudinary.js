@@ -1,7 +1,7 @@
-const cloudinary = require('cloudinary').v2;
-const { Readable } = require('stream');
-const dotenv = require('dotenv'); // Adicione esta linha
-dotenv.config(); // Adicione esta linha para carregar .env localmente, se existir
+import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Configuração do Cloudinary usando variáveis de ambiente
 cloudinary.config({
@@ -11,7 +11,7 @@ cloudinary.config({
 });
 
 // Função para subir imagem para o Cloudinary
-const uploadImageToCloudinary = (fileBuffer) => {
+export const uploadImageToCloudinary = (fileBuffer) => {
   return new Promise((resolve, reject) => {
     const readableStream = new Readable();
     readableStream.push(fileBuffer);
@@ -36,5 +36,3 @@ const uploadImageToCloudinary = (fileBuffer) => {
     readableStream.pipe(uploadStream);
   });
 };
-
-module.exports = { uploadImageToCloudinary };

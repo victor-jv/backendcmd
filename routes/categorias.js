@@ -1,7 +1,8 @@
-const express = require('express');
-const { db } = require('../utils/firebaseAdmin');
+// Substitua o require por import
+import { Router } from 'express';
+import { supabase } from '../utils/supabaseClient.js'; // Importa o novo cliente
 
-const router = express.Router();
+const router = Router();
 
 // ➕ Adicionar categoria
 router.post('/', async (req, res) => {
@@ -11,14 +12,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Nome da categoria é obrigatório.' });
     }
 
-    const docRef = await db.collection('categorias').add({
-      name,
-      createdAt: new Date(),
-    });
+    const { data, error } = await supabase
+      .from('categorias')
+      .insert([{ name }]) // Insere um novo registo
+      .select() // Retorna o registo inserido
+      .single(); // Garante que retorna apenas um objeto, não um array
 
-    res.status(201).json({ id: docRef.id, name });
+    if (error) throw error;
+
+    res.status(201).json(data);
   } catch (error) {
-    console.error('Erro ao adicionar categoria:', error);
+    console.error('Erro ao adicionar categoria:', error.message);
     res.status(500).json({ error: 'Erro ao adicionar categoria.' });
   }
 });
@@ -26,14 +30,16 @@ router.post('/', async (req, res) => {
 // 📄 Listar categorias
 router.get('/', async (req, res) => {
   try {
-    const snapshot = await db.collection('categorias').orderBy('createdAt', 'desc').get();
-    const categorias = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    res.json(categorias);
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('*') // Seleciona todas as colunas
+      .order('created_at', { ascending: false }); // Ordena pela data de criação
+
+    if (error) throw error;
+
+    res.json(data);
   } catch (error) {
-    console.error('Erro ao buscar categorias:', error);
+    console.error('Erro ao buscar categorias:', error.message);
     res.status(500).json({ error: 'Erro ao buscar categorias.' });
   }
 });
@@ -48,14 +54,18 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Nome da categoria é obrigatório.' });
     }
 
-    await db.collection('categorias').doc(id).update({
-      name,
-      updatedAt: new Date(),
-    });
+    const { data, error } = await supabase
+      .from('categorias')
+      .update({ name, updated_at: new Date() }) // Atualiza o nome
+      .eq('id', id) // Onde o id é igual ao id do parâmetro
+      .select()
+      .single();
 
-    res.json({ id, name });
+    if (error) throw error;
+
+    res.json(data);
   } catch (error) {
-    console.error('Erro ao editar categoria:', error);
+    console.error('Erro ao editar categoria:', error.message);
     res.status(500).json({ error: 'Erro ao editar categoria.' });
   }
 });
@@ -65,13 +75,19 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    await db.collection('categorias').doc(id).delete();
+    const { error } = await supabase
+      .from('categorias')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
 
     res.json({ message: 'Categoria deletada com sucesso!' });
   } catch (error) {
-    console.error('Erro ao deletar categoria:', error);
+    console.error('Erro ao deletar categoria:', error.message);
     res.status(500).json({ error: 'Erro ao deletar categoria.' });
   }
 });
 
-module.exports = router;
+// module.exports = router; // Mude para export default
+export default router;
