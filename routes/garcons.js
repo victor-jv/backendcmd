@@ -1,76 +1,92 @@
-const express = require('express');
-const multer = require('multer');
-const { db } = require('../utils/firebaseAdmin'); // Já puxando certo
+import { Router } from 'express';
+import { supabase } from '../utils/supabaseClient.js';
 
-const router = express.Router();
-const upload = multer();
+const router = Router();
 
-// 🛒 Adicionar novo garçom
-router.post('/', upload.none(), async (req, res) => {
+// ➕ Criar garçom
+router.post('/', async (req, res) => {
   try {
     const { nome } = req.body;
 
     if (!nome) {
-      return res.status(400).json({ error: 'Preencha todos os campos!' });
+      return res.status(400).json({ error: 'O nome do garçom é obrigatório!' });
     }
 
-    const docRef = await db.collection('garcons').add({
-      nome,
-      createdAt: new Date()
-    });
+    const { data, error } = await supabase
+      .from('garcons')
+      .insert([{ nome, created_at: new Date().toISOString() }])
+      .select()
+      .single();
 
-    res.status(201).json({ id: docRef.id, nome });
+    if (error) throw error;
+
+    res.status(201).json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao adicionar garçom.' });
+    console.error('Erro ao adicionar garçom:', error.message);
+    res.status(500).json({ error: 'Erro interno ao adicionar garçom.' });
   }
 });
 
-// 🛒 Buscar todos os garçons
+// 📄 Buscar todos os garçons
 router.get('/', async (req, res) => {
   try {
-    const snapshot = await db.collection('garcons').get();
-    const garcons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.json(garcons);
+    const { data, error } = await supabase
+      .from('garcons')
+      .select('id, nome, created_at')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    res.status(200).json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao buscar garçons.' });
+    console.error('Erro ao buscar garçons:', error.message);
+    res.status(500).json({ error: 'Erro interno ao buscar garçons.' });
   }
 });
 
-// 🛒 Deletar garçom
+// ✏️ Atualizar garçom
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome } = req.body;
+
+    if (!nome) {
+      return res.status(400).json({ error: 'O nome do garçom é obrigatório!' });
+    }
+
+    const { data, error } = await supabase
+      .from('garcons')
+      .update({ nome, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Erro ao editar garçom:', error.message);
+    res.status(500).json({ error: 'Erro interno ao editar garçom.' });
+  }
+});
+
+// 🗑️ Deletar garçom
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await db.collection('garcons').doc(id).delete();
-    res.status(200).json({ message: 'Garçom deletado' });
+
+    const { error } = await supabase
+      .from('garcons')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.status(200).json({ message: 'Garçom deletado com sucesso.' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao deletar garçom.' });
+    console.error('Erro ao deletar garçom:', error.message);
+    res.status(500).json({ error: 'Erro interno ao deletar garçom.' });
   }
 });
 
-// 🛒 Editar garçom
-router.put('/:id', upload.none(), async (req, res) => {
-  try {
-    const { nome } = req.body;
-    const { id } = req.params;
-
-    if (!nome) {
-      return res.status(400).json({ error: 'Preencha todos os campos!' });
-    }
-
-    // Atualizar o garçom
-    await db.collection('garcons').doc(id).update({
-      nome,
-      updatedAt: new Date()  // Armazenar a data de edição
-    });
-
-    res.status(200).json({ id, nome });
-  } catch (error) {
-    console.error('Erro ao editar garçom:', error);
-    res.status(500).json({ error: 'Erro ao editar garçom.' });
-  }
-});
-
-module.exports = router;
+export default router;
